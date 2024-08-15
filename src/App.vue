@@ -1,14 +1,18 @@
 <template lang="pug">
 .app
-    p hello
+    p {{ statusText}}
 
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import Papa from '@simwrapper/papaparse'
+import Coords from './Coords'
 
 const DATA_URL = 'http://localhost:8000/infections-map'
+const INFECTIONS_URL = `${DATA_URL}/calibration481.infectionEvents.txt`
+const POPULATION_URL = `${DATA_URL}/population.csv`
+const PROJECTION = 'EPSG:25832'
 
 interface InfectionRecord {
   date: string
@@ -20,6 +24,8 @@ interface InfectionRecord {
   facility?: string
   virusStrain?: string
   probability?: number
+  lat?: number
+  lon?: number
 }
 
 export default defineComponent({
@@ -29,38 +35,86 @@ export default defineComponent({
     return {
       allInfections: [] as InfectionRecord[],
       isLoaded: false,
+      population: [] as any[],
+      numInfections: 0,
+      statusText: 'Loading...',
     }
   },
   computed: {},
   watch: {},
-  methods: {
-    finishedLoadingInfections() {
-      console.log('DONE', this.allInfections)
-    },
-  },
-  mounted() {
-    const infections = `${DATA_URL}/calibration481.infectionEvents.txt`
 
-    Papa.parse(infections, {
-      // preview: 10000,
-      download: true,
-      header: true,
-      dynamicTyping: true,
-      worker: false,
-      delimiter: '\t',
-      skipEmptyLines: true,
-      chunk: (results: any, _: any) => {
-        console.log('CHUNKK', results.data)
-        for (const row of results.data) {
-          const { date, infected } = row
-          this.allInfections.push({ date, infected })
-        }
-      },
-      complete: (results: any, file: any) => {
-        console.log('COMPLETE', { results, file })
-        this.finishedLoadingInfections()
-      },
-    })
+  mounted() {
+    this.loadPopulation()
+  },
+
+  methods: {
+    loadPopulation() {
+      Papa.parse(POPULATION_URL, {
+        // preview: 10000,
+        download: true,
+        header: true,
+        dynamicTyping: false,
+        delimiter: ',',
+        skipEmptyLines: true,
+        complete: (results: any, _: any) => {
+          this.population = results.data
+          this.loadInfections()
+        },
+      })
+    },
+
+    loadInfections() {
+      Papa.parse(INFECTIONS_URL, {
+        preview: 100000,
+        download: true,
+        header: true,
+        dynamicTyping: false,
+        worker: true,
+        delimiter: '\t',
+        skipEmptyLines: true,
+        chunk: (results: any, _: any) => {
+          console.log('CHUNKK', results.data)
+          this.numInfections += results.data.length
+          this.statusText = 'Reading infections: ' + this.numInfections
+          for (const row of results.data) {
+            const { date, infected } = row
+            this.allInfections.push({ date, infected })
+          }
+        },
+        complete: (results: any, file: any) => {
+          console.log('COMPLETE', { results, file })
+          this.finishedLoadingInfections()
+        },
+      })
+    },
+
+    async finishedLoadingInfections() {
+      console.log('DONE', { population: this.population, infections: this.allInfections })
+
+      // prepare population data
+      this.statusText = 'Building population lookup'
+      await this.$nextTick()
+
+      const personLookup = {} as any
+
+      for (const person of this.population) {
+        const xy = [parseFloat(person.homeX), parseFloat(person.homeY)]
+        const [lat, lon] = Coords.toLngLat(PROJECTION, xy)
+        personLookup[`${person.id}`] = Object.assign({}, { lat, lon }, person)
+      }
+
+      // prepare infection data
+      this.statusText = 'Joining infection data'
+      await this.$nextTick()
+
+      for (const infection of this.allInfections) {
+        const person = personLookup[infection.infected]
+        infection.lat = person.lat
+        infection.lon = person.lon
+      }
+
+      console.log('REALLY DONE', this.allInfections)
+    },
   },
 })
 </script>
