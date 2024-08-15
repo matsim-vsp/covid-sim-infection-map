@@ -6,16 +6,62 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import Papa from '@simwrapper/papaparse'
+
+const DATA_URL = 'http://localhost:8000/infections-map'
+
+interface InfectionRecord {
+  date: string
+  infected: string
+  time?: number
+  infector?: string
+  infectionType?: string
+  groupSize?: number
+  facility?: string
+  virusStrain?: string
+  probability?: number
+}
 
 export default defineComponent({
   name: 'InfectionMap',
   components: {},
   data: () => {
-    return {}
+    return {
+      allInfections: [] as InfectionRecord[],
+      isLoaded: false,
+    }
   },
   computed: {},
-  methods: {},
-  mounted() {},
+  watch: {},
+  methods: {
+    finishedLoadingInfections() {
+      console.log('DONE', this.allInfections)
+    },
+  },
+  mounted() {
+    const infections = `${DATA_URL}/calibration481.infectionEvents.txt`
+
+    Papa.parse(infections, {
+      // preview: 10000,
+      download: true,
+      header: true,
+      dynamicTyping: true,
+      worker: false,
+      delimiter: '\t',
+      skipEmptyLines: true,
+      chunk: (results: any, _: any) => {
+        console.log('CHUNKK', results.data)
+        for (const row of results.data) {
+          const { date, infected } = row
+          this.allInfections.push({ date, infected })
+        }
+      },
+      complete: (results: any, file: any) => {
+        console.log('COMPLETE', { results, file })
+        this.finishedLoadingInfections()
+      },
+    })
+  },
 })
 </script>
 
