@@ -1,10 +1,23 @@
-<script setup lang="ts"></script>
-
 <template lang="pug">
 .app
     p hello
 
 </template>
+
+<script lang="ts">
+import { defineComponent } from 'vue'
+
+export default defineComponent({
+  name: 'InfectionMap',
+  components: {},
+  data: () => {
+    return {}
+  },
+  computed: {},
+  methods: {},
+  mounted() {},
+})
+</script>
 
 <style scoped lang="scss">
 @import '~/the-new-css-reset/css/reset.css';
@@ -44,5 +57,8 @@ b {
   margin: 0.5rem 0.5rem;
   padding: 0.5rem 0.5rem;
   background-color: rgb(228, 228, 182);
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
 }
 </style>
