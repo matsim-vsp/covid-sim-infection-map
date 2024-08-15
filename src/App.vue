@@ -1,12 +1,19 @@
 <template lang="pug">
 .app
     p {{ statusText}}
+    .mymap(id="mymap")
 
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import Papa from '@simwrapper/papaparse'
+// import { Deck } from '@deck.gl/core'
+import { MapboxOverlay as DeckOverlay } from '@deck.gl/mapbox'
+import { ScatterplotLayer } from '@deck.gl/layers'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
+
 import Coords from './Coords'
 
 const DATA_URL = 'http://localhost:8000/infections-map'
@@ -24,8 +31,7 @@ interface InfectionRecord {
   facility?: string
   virusStrain?: string
   probability?: number
-  lat?: number
-  lon?: number
+  coords: number[]
 }
 
 export default defineComponent({
@@ -33,6 +39,7 @@ export default defineComponent({
   components: {},
   data: () => {
     return {
+      map: {} as any,
       allInfections: [] as InfectionRecord[],
       isLoaded: false,
       population: [] as any[],
@@ -44,6 +51,15 @@ export default defineComponent({
   watch: {},
 
   mounted() {
+    this.map = new maplibregl.Map({
+      container: 'mymap',
+      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      center: [5, 50],
+      zoom: 5,
+      bearing: 0,
+      pitch: 0,
+    })
+
     this.loadPopulation()
   },
 
@@ -65,7 +81,7 @@ export default defineComponent({
 
     loadInfections() {
       Papa.parse(INFECTIONS_URL, {
-        preview: 100000,
+        preview: 200000,
         download: true,
         header: true,
         dynamicTyping: false,
@@ -78,7 +94,7 @@ export default defineComponent({
           this.statusText = 'Reading infections: ' + this.numInfections
           for (const row of results.data) {
             const { date, infected } = row
-            this.allInfections.push({ date, infected })
+            this.allInfections.push({ date, infected } as any)
           }
         },
         complete: (results: any, file: any) => {
@@ -99,8 +115,8 @@ export default defineComponent({
 
       for (const person of this.population) {
         const xy = [parseFloat(person.homeX), parseFloat(person.homeY)]
-        const [lat, lon] = Coords.toLngLat(PROJECTION, xy)
-        personLookup[`${person.id}`] = Object.assign({}, { lat, lon }, person)
+        const [lon, lat] = Coords.toLngLat(PROJECTION, xy)
+        personLookup[`${person.id}`] = Object.assign({ lat, lon }, person)
       }
 
       // prepare infection data
@@ -109,11 +125,48 @@ export default defineComponent({
 
       for (const infection of this.allInfections) {
         const person = personLookup[infection.infected]
-        infection.lat = person.lat
-        infection.lon = person.lon
+        infection.coords = [person.lon, person.lat]
       }
 
       console.log('REALLY DONE', this.allInfections)
+      this.statusText = ''
+      this.buildDeckLayer()
+    },
+
+    buildDeckLayer() {
+      const deckOverlay = new DeckOverlay({
+        layers: [
+          new ScatterplotLayer({
+            id: 'pointlayer-1',
+            data: this.allInfections,
+            getFillColor: [64, 0, 200],
+            getRadius: 25,
+            getPosition: (d: InfectionRecord) => d.coords as any,
+            radiusScale: 1,
+            stroked: false,
+            filled: true,
+            autoHighlight: true,
+            highlightColor: [255, 255, 255],
+            opacity: 1.0,
+            pickable: true,
+            useDevicePixels: true,
+            transitions: {},
+            parameters: { depthTest: false },
+            glOptions: { fp64: false },
+            // updateTriggers: {}
+            // },
+            // filter shapes
+            // extensions: [new DataFilterExtension({ filterSize: 1 })],
+            // filterRange: [0, 1], // set filter to -1 to filter element out
+            // getFilterValue: (_: any, o: DeckObject) => {
+            //   return featureFilter[o.index]
+            // },
+          }) as any,
+        ],
+      })
+
+      this.map.addControl(deckOverlay)
+      this.map.addControl(new maplibregl.NavigationControl())
     },
   },
 })
@@ -159,6 +212,10 @@ b {
   background-color: rgb(228, 228, 182);
   display: flex;
   flex-direction: column;
-  border-radius: 10px;
+}
+
+#mymap {
+  flex: 1;
+  width: 100%;
 }
 </style>
