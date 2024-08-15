@@ -1,30 +1,48 @@
-<script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
-</script>
+<script setup lang="ts"></script>
 
-<template>
-  <div>
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
-  </div>
-  <HelloWorld msg="Vite + Vue" />
+<template lang="pug">
+.app
+    p hello
+
 </template>
 
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+<style scoped lang="scss">
+@import '~/the-new-css-reset/css/reset.css';
+
+html {
+  box-sizing: border-box;
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
 }
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+
+body,
+html {
+  // font-family: $mainFont;
+  height: 100%;
+  overscroll-behavior: contain;
+}
+
+html {
+  overflow-y: auto;
+  color: var(--text);
+}
+
+b {
+  font-weight: bold;
+}
+
+.app {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0.5rem 0.5rem;
+  padding: 0.5rem 0.5rem;
+  background-color: rgb(228, 228, 182);
 }
 </style>
