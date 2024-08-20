@@ -36,10 +36,9 @@ h1 {
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
+  border: 1px solid #cccccc44; /* transparent; */
   padding: 0.25em 0.75em;
-  font-size: 1em;
+  font-size: 0.9em;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -49,10 +48,11 @@ button {
 button:hover {
   border-color: #646cff;
 }
-button:focus,
+
+/* button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
-}
+} */
 
 #app {
   max-width: 1280px;
