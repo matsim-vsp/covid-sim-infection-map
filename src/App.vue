@@ -8,10 +8,11 @@
 
     .mymap.flex1(id="mymap")
 
-    time-slider.time-slider(v-if="startDate"
+    time-slider.time-slider(v-if="isLoaded"
       :numDays="numDays"
       :dailyTotals="dailyTotals"
       :weeks="weeks"
+      :initial="[0, 30/numDays]"
       @range="filterByDate"
     )
 
@@ -117,7 +118,7 @@ export default defineComponent({
 
     loadInfections() {
       Papa.parse(INFECTIONS_URL, {
-        preview: 25e3,
+        // preview: 500000,
         download: true,
         header: true,
         dynamicTyping: true,
@@ -127,8 +128,10 @@ export default defineComponent({
           this.numInfections += results.data.length
           this.statusText = 'Reading infections: ' + this.numInfections
           for (const row of results.data) {
+            if (!this.startDate) this.startDate = row[`"date`]
+
             this.allInfections.push({
-              date: row[`"date`],
+              // date: row[`"date`],
               home_lon: row[`"home_lon`],
               home_lat: row[`"home_lat`],
               daysSinceStart: row[`"daysSinceStart`],
@@ -137,13 +140,14 @@ export default defineComponent({
         },
         complete: () => {
           this.setupDailyTotals()
+          this.isLoaded = true
           this.buildDeckLayer()
         },
       })
     },
 
     setupDailyTotals() {
-      this.startDate = this.allInfections[0].date
+      // this.startDate = this.allInfections[0].date
       this.numDays = this.allInfections[this.allInfections.length - 1].daysSinceStart || 0
 
       this.dailyTotals = new Float32Array(this.numDays + 1)

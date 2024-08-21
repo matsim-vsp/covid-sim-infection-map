@@ -39,6 +39,7 @@ export default defineComponent({
     numDays: Number,
     dailyTotals: { type: Object as PropType<Float32Array>, required: true },
     weeks: { type: Object as PropType<number[]>, required: true },
+    initial: { type: Object as PropType<number[]>, required: true },
   },
 
   data: () => {
@@ -49,11 +50,12 @@ export default defineComponent({
       isDragHappening: false,
       dragStartWidth: 100,
       thumbLeft: 100,
-      thumbWidth: 100,
+      thumbWidth: 0,
       pctStart: 0,
       pctEnd: 1,
       maxInfections: 1,
       side: '',
+      useInitial: true,
     }
   },
   computed: {},
@@ -62,6 +64,28 @@ export default defineComponent({
   mounted() {
     this.rightside = this.numDays || 0
     this.updateWeeks()
+
+    // initial extent
+    const dailybar = document.getElementById('dailybar') as HTMLElement
+    const totalWidth = dailybar.clientWidth
+    this.thumbLeft = Math.floor(this.initial[0] * totalWidth)
+    this.thumbWidth = Math.ceil((this.initial[1] - this.initial[0]) * totalWidth)
+    console.log(this.thumbLeft, this.thumbWidth)
+
+    const resizeObserver = new ResizeObserver(_ => {
+      console.log('resizer')
+      const dailybar = document.getElementById('dailybar') as HTMLElement
+      const totalWidth = dailybar.clientWidth
+
+      let start = this.useInitial ? this.initial[0] : this.pctStart
+      let end = this.useInitial ? this.initial[1] : this.pctEnd
+      this.useInitial = false
+
+      this.thumbLeft = Math.floor(start * totalWidth)
+      this.thumbWidth = Math.ceil((end - start) * totalWidth)
+    })
+    const timeSlider = document.getElementById('dailybar')
+    if (timeSlider) resizeObserver.observe(timeSlider)
   },
 
   methods: {
@@ -114,7 +138,7 @@ export default defineComponent({
 
       const testLeft = this.thumbLeft + deltaX
       if (testLeft < 0) return
-      if (testLeft >= this.thumbLeft + this.thumbWidth - 20) return
+      if (testLeft >= this.thumbLeft + this.thumbWidth - 16) return
 
       this.isDraggingDivider += deltaX
       this.thumbLeft += deltaX
@@ -137,7 +161,7 @@ export default defineComponent({
       const deltaX = e.clientX - this.isDraggingDivider // this.dragStartWidth - e.clientX
 
       const testWidth = this.thumbWidth + deltaX
-      if (testWidth < 20) return
+      if (testWidth < 16) return
       if (this.thumbLeft + testWidth > totalWidth) return
 
       this.thumbWidth += deltaX
@@ -219,7 +243,6 @@ export default defineComponent({
 
 .week {
   flex: 1;
-  // height: 20px;
   background-color: #e24986;
   margin-top: auto;
   margin-right: 1px;
@@ -252,7 +275,7 @@ export default defineComponent({
 #dragleftie,
 #dragrightie {
   margin: 0 auto 0 0;
-  width: 8px;
+  width: 4px;
   background-color: #218f3a;
   opacity: 0;
   z-index: 10;
@@ -266,13 +289,13 @@ export default defineComponent({
 }
 
 #dragleftie {
-  border-top-left-radius: 8px;
-  border-bottom-left-radius: 8px;
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
 }
 
 #dragrightie {
   margin: 0 0 0 auto;
-  border-top-right-radius: 8px;
-  border-bottom-right-radius: 8px;
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
 }
 </style>
