@@ -2,9 +2,9 @@
 .app
     .button-row
       p.flex1(style="margin: auto 0"): b {{ statusText }} {{ (filterStartDate+filterEndDate) ? `Day ${filterStartDate} - ${filterEndDate}` : '' }}
+      button(@click="view=0" :class="{isActive: view==0}") Points
+      button(@click="view=1" :class="{isActive: view==1}") Hexagons
       button(@click="view=2" :class="{isActive: view==2}") Districts
-      button(@click="view=1" :class="{isActive: view==1}") Aggregate
-      button(@click="view=0" :class="{isActive: view==0}") Individual locations
 
     .mymap.flex1(id="mymap")
 
@@ -71,7 +71,7 @@ export default defineComponent({
       startDate: '',
       numDays: 0,
       dailyTotals: new Float32Array(0),
-      largestNumDailyInfections: 0,
+      // largestNumDailyInfections: 0,
       filterStartDate: 0,
       filterEndDate: 0,
       weeks: [] as number[],
@@ -117,7 +117,7 @@ export default defineComponent({
 
     loadInfections() {
       Papa.parse(INFECTIONS_URL, {
-        // preview: 50000,
+        preview: 25e3,
         download: true,
         header: true,
         dynamicTyping: true,
@@ -152,8 +152,8 @@ export default defineComponent({
         this.dailyTotals[inf.daysSinceStart] += 1
       })
 
-      this.largestNumDailyInfections = Math.max(...this.dailyTotals)
-      console.log(this.startDate, this.numDays, this.dailyTotals, this.largestNumDailyInfections)
+      // this.largestNumDailyInfections = Math.max(...this.dailyTotals)
+      // console.log(this.startDate, this.numDays, this.dailyTotals, this.largestNumDailyInfections)
 
       // weekly totals
       let total = 0
@@ -175,7 +175,6 @@ export default defineComponent({
 
       this.map.addControl(this.deckOverlay)
       this.map.addControl(new maplibregl.NavigationControl())
-      console.log('done done')
       this.statusText = 'Home locations of infected people'
 
       this.updateLayers() // setTimeout(this.updateLayers, 1000)
@@ -212,28 +211,28 @@ export default defineComponent({
         }) as any
       )
 
-      layers.push(
-        new HexagonLayer({
-          visible: this.view == MapView.hexagons,
-          id: 'HexagonLayer',
-          data: this.allInfections,
-          extruded: true,
-          getPosition: (d: any) => [d.home_lon, d.home_lat],
-          getColorWeight: 1,
-          getElevationWeight: 1,
-          elevationScale: 2,
-          radius: 200,
-          pickable: true,
-          opacity: 0.8,
-          coverage: 0.85,
-          useDevicePixels: false,
+      // layers.push(
+      //   new HexagonLayer({
+      //     visible: this.view == MapView.hexagons,
+      //     id: 'HexagonLayer',
+      //     data: this.allInfections,
+      //     extruded: true,
+      //     getPosition: (d: any) => [d.home_lon, d.home_lat],
+      //     getColorWeight: 1,
+      //     getElevationWeight: 1,
+      //     elevationScale: 2,
+      //     radius: 200,
+      //     pickable: true,
+      //     opacity: 0.8,
+      //     coverage: 0.85,
+      //     useDevicePixels: false,
 
-          // filter infections by date
-          // extensions: [new DataFilterExtension({ filterSize: 1 })],
-          // filterRange: [this.filterStartDate, this.filterEndDate],
-          // getFilterValue: (d: InfectionRecord) => d.daysSinceStart,
-        })
-      )
+      //     // filter infections by date
+      //     // extensions: [new DataFilterExtension({ filterSize: 1 })],
+      //     // filterRange: [this.filterStartDate, this.filterEndDate],
+      //     // getFilterValue: (d: InfectionRecord) => d.daysSinceStart,
+      //   })
+      // )
 
       this.deckOverlay._deck.setProps({ layers })
     },
@@ -304,6 +303,10 @@ b {
   display: flex;
   flex-direction: row;
   margin-bottom: 0.5rem;
+
+  p {
+    font-size: 1.1rem;
+  }
 }
 
 .flex1 {
@@ -317,8 +320,13 @@ b {
   grid-column: 1 / 2;
 }
 
+button {
+  width: 4rem;
+  text-align: center;
+}
+
 button.isActive {
-  background-color: #47f;
+  background-color: rgb(69, 126, 192);
   color: white;
   border-radius: 0;
 }
@@ -327,6 +335,6 @@ button.isActive {
   grid-column: 1 / 2;
   grid-row: 3 / 4;
   z-index: 2;
-  margin: 1rem 1rem 3rem 1rem;
+  margin: 1rem 1rem 2.75rem 1rem;
 }
 </style>
