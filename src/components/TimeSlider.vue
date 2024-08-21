@@ -36,7 +36,7 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-export interface Label {
+interface Label {
   leftPct: number
   text: string
 }

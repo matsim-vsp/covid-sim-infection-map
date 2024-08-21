@@ -24,17 +24,22 @@ import { defineComponent } from 'vue'
 import Papa from '@simwrapper/papaparse'
 import { MapboxOverlay as DeckOverlay } from '@deck.gl/mapbox'
 import { ScatterplotLayer } from '@deck.gl/layers'
-import { HexagonLayer } from '@deck.gl/aggregation-layers'
+// import { HexagonLayer } from '@deck.gl/aggregation-layers'
 import { DataFilterExtension } from '@deck.gl/extensions'
 
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Temporal } from 'temporal-polyfill'
 
-import TimeSlider, { Label } from '@/components/TimeSlider.vue'
+import TimeSlider from '@/components/TimeSlider.vue'
 
 const DATA_URL = 'http://localhost:8000/infections-map'
 const INFECTIONS_URL = `${DATA_URL}/infections.csv` // 'calibration481.infectionEvents.txt`
+
+interface Label {
+  leftPct: number
+  text: string
+}
 
 interface InfectionRecord {
   date: string
@@ -181,7 +186,7 @@ export default defineComponent({
       const endYear = endDate.year
       // console.log({ startYear, endYear })
 
-      this.labels.push({ leftPct: 0, text: firstDate })
+      this.labels.push({ leftPct: 0, text: firstDate.toString() })
       for (let i = startYear + 1; i <= endYear; i++) {
         const jan01 = Temporal.PlainDateTime.from(`${i}-01-01`)
         const daysSinceStart = jan01.since(firstDate).days
