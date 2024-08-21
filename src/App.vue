@@ -13,6 +13,7 @@
       :dailyTotals="dailyTotals"
       :weeks="weeks"
       :initial="[0, 30/numDays]"
+      :labels="labels"
       @range="filterByDate"
     )
 
@@ -28,8 +29,9 @@ import { DataFilterExtension } from '@deck.gl/extensions'
 
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { Temporal } from 'temporal-polyfill'
 
-import TimeSlider from '@/components/TimeSlider.vue'
+import TimeSlider, { Label } from '@/components/TimeSlider.vue'
 
 const DATA_URL = 'http://localhost:8000/infections-map'
 const INFECTIONS_URL = `${DATA_URL}/infections.csv` // 'calibration481.infectionEvents.txt`
@@ -76,6 +78,7 @@ export default defineComponent({
       filterStartDate: 0,
       filterEndDate: 0,
       weeks: [] as number[],
+      labels: [] as Label[],
     }
   },
   computed: {},
@@ -118,7 +121,7 @@ export default defineComponent({
 
     loadInfections() {
       Papa.parse(INFECTIONS_URL, {
-        // preview: 500000,
+        // preview: 50000,
         download: true,
         header: true,
         dynamicTyping: true,
@@ -169,7 +172,25 @@ export default defineComponent({
         }
       }
       if (total) this.weeks.push(total)
-      console.log(this.weeks)
+      // console.log(this.weeks)
+
+      // start-of-year labels
+      const firstDate = Temporal.PlainDate.from(this.startDate)
+      const endDate = firstDate.add({ days: this.numDays })
+      const startYear = firstDate.year
+      const endYear = endDate.year
+      // console.log({ startYear, endYear })
+
+      this.labels.push({ leftPct: 0, text: firstDate })
+      for (let i = startYear + 1; i <= endYear; i++) {
+        const jan01 = Temporal.PlainDateTime.from(`${i}-01-01`)
+        const daysSinceStart = jan01.since(firstDate).days
+        const pct = (100 * daysSinceStart) / this.numDays
+        this.labels.push({ leftPct: pct, text: `${i}` })
+      }
+      if (this.labels[this.labels.length - 1].leftPct > 96.5) {
+        this.labels[this.labels.length - 1].leftPct = 96.5
+      }
     },
 
     buildDeckLayer() {

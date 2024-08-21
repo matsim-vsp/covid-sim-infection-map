@@ -5,8 +5,13 @@
 )
 
   #dailybar
-    //- .week(v-for="week in weeks")
-    .week(v-for="week in weeks" :style="{height: `${getWeekHeight(week)}%`}")
+    .bars
+      .week(v-for="week in weeks" :style="{height: `${getWeekHeight(week)}%`}")
+
+    .labels(v-if="labels")
+      .date-label(v-for="label in labels"
+        :style="{left: `${label.leftPct}%`}"
+      ) {{ label.text }}
 
   #dragthumb(:style="{left: `${thumbLeft}px`, width: `${thumbWidth}px`}"
     @mousedown="dividerDragStart"
@@ -31,6 +36,11 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
+export interface Label {
+  leftPct: number
+  text: string
+}
+
 export default defineComponent({
   name: 'TimeSlider',
   components: {},
@@ -40,6 +50,7 @@ export default defineComponent({
     dailyTotals: { type: Object as PropType<Float32Array>, required: true },
     weeks: { type: Object as PropType<number[]>, required: true },
     initial: { type: Object as PropType<number[]>, required: true },
+    labels: { type: Object as PropType<Label[]>, required: false },
   },
 
   data: () => {
@@ -70,10 +81,8 @@ export default defineComponent({
     const totalWidth = dailybar.clientWidth
     this.thumbLeft = Math.floor(this.initial[0] * totalWidth)
     this.thumbWidth = Math.ceil((this.initial[1] - this.initial[0]) * totalWidth)
-    console.log(this.thumbLeft, this.thumbWidth)
 
     const resizeObserver = new ResizeObserver(_ => {
-      console.log('resizer')
       const dailybar = document.getElementById('dailybar') as HTMLElement
       const totalWidth = dailybar.clientWidth
 
@@ -126,7 +135,7 @@ export default defineComponent({
       this.pctStart = this.thumbLeft / totalWidth
       this.pctEnd = (this.thumbLeft + this.thumbWidth) / totalWidth
 
-      console.log(this.pctStart, this.pctEnd)
+      // console.log(this.pctStart, this.pctEnd)
       this.$emit('range', { start: this.pctStart, end: this.pctEnd })
     },
 
@@ -221,11 +230,12 @@ export default defineComponent({
 .time-slider {
   position: relative;
   background-color: white;
-  height: 3rem;
   display: flex;
   flex-direction: row;
   border: 2px solid #4972e2;
   opacity: 0.9;
+  height: 5rem;
+  user-select: none;
 }
 
 #dailybar {
@@ -234,11 +244,26 @@ export default defineComponent({
   bottom: 0;
   left: 0;
   right: 0;
-  // background-color: lightgray;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   z-index: 3;
   padding: 4px 4px;
+}
+
+.labels {
+  font-size: 0.7rem;
+  display: flex;
+  flex-direction: row;
+  line-height: 0.7rem;
+  position: relative;
+  width: 100%;
+  height: 0.6rem;
+}
+
+.bars {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
 }
 
 .week {
@@ -261,7 +286,7 @@ export default defineComponent({
   opacity: 0.6;
   display: flex;
   flex-direction: row;
-  border-radius: 8px;
+  border-radius: 5px;
 }
 
 #dragthumb:active,
@@ -297,5 +322,12 @@ export default defineComponent({
   margin: 0 0 0 auto;
   border-top-right-radius: 5px;
   border-bottom-right-radius: 5px;
+}
+
+.date-label {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: 2rem;
 }
 </style>
