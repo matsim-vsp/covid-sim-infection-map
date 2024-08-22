@@ -21,7 +21,6 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import Papa from '@simwrapper/papaparse'
 import { MapboxOverlay as DeckOverlay } from '@deck.gl/mapbox'
 import { ScatterplotLayer } from '@deck.gl/layers'
 // import { HexagonLayer } from '@deck.gl/aggregation-layers'
@@ -32,9 +31,13 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { Temporal } from 'temporal-polyfill'
 
 import TimeSlider from '@/components/TimeSlider.vue'
+import CSVStreamer from '@/CSVStreamer.worker.ts?worker'
 
-const DATA_URL = 'http://localhost:8000/infections-map'
-const INFECTIONS_URL = `${DATA_URL}/infections.csv` // 'calibration481.infectionEvents.txt`
+const BATTERY_URL =
+  'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/episim/battery'
+
+// const DATA_URL = 'http://localhost:8000/infections-map'
+// const INFECTIONS_URL = `${DATA_URL}/infections.csv` // 'calibration481.infectionEvents.txt`
 
 interface Label {
   leftPct: number
@@ -84,6 +87,7 @@ export default defineComponent({
       filterEndDate: 0,
       weeks: [] as number[],
       labels: [] as Label[],
+      csvStreamer: null as any,
     }
   },
   computed: {},
@@ -94,6 +98,8 @@ export default defineComponent({
   },
 
   beforeDestroy() {
+    if (this.csvStreamer) this.csvStreamer.terminate()
+
     this.allInfections = []
     this.coordinates = new Float64Array(1)
     this.population = []
@@ -125,33 +131,61 @@ export default defineComponent({
     },
 
     loadInfections() {
-      Papa.parse(INFECTIONS_URL, {
-        // preview: 50000,
-        download: true,
-        header: true,
-        dynamicTyping: true,
-        worker: true,
-        skipEmptyLines: true,
-        chunk: (results: any, _: any) => {
-          this.numInfections += results.data.length
-          this.statusText = 'Reading infections: ' + this.numInfections
-          for (const row of results.data) {
-            if (!this.startDate) this.startDate = row[`"date`]
+      // get URL from... URL bar
+      let params = new URLSearchParams(document.location.search)
+      let path = params.get('path') || ''
 
+      // test data
+      if (!path) path = 'jakob/2023-11-06/1-bmbf-calibrate-eg-B/summaries/1-infections.csv.gz'
+
+      const batteryUrl = `${BATTERY_URL}/${path}`
+
+      console.log({ batteryUrl })
+
+      this.csvStreamer = new CSVStreamer()
+
+      this.csvStreamer.onmessage = async (buffer: MessageEvent) => {
+        if (buffer.data.status) this.statusText = buffer.data.status
+        if (buffer.data.error) this.statusText = buffer.data.error
+        if (buffer.data.finished) this.finishedLoadingInfections()
+
+        if (buffer.data.data) {
+          const rows = buffer.data.data as any[]
+          this.numInfections += rows.length
+          this.statusText = 'Reading infections: ' + this.numInfections
+
+          for (const row of rows) {
+            if (!this.startDate) this.startDate = row[`"date`]
             this.allInfections.push({
-              // date: row[`"date`],
               home_lon: row[`"home_lon`],
               home_lat: row[`"home_lat`],
               daysSinceStart: row[`"daysSinceStart`],
             } as any)
           }
-        },
-        complete: () => {
-          this.setupDailyTotals()
-          this.isLoaded = true
-          this.buildDeckLayer()
+        }
+      }
+
+      this.csvStreamer.postMessage({
+        url: batteryUrl,
+        options: {
+          // preview: 50000,
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
         },
       })
+    },
+
+    finishedLoadingInfections() {
+      this.csvStreamer.terminate()
+
+      if (!this.allInfections.length) {
+        this.statusText = 'ERROR: No infections file found'
+        return
+      }
+      this.setupDailyTotals()
+      this.isLoaded = true
+      this.buildDeckLayer()
     },
 
     setupDailyTotals() {
