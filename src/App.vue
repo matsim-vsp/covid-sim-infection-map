@@ -112,7 +112,7 @@ export default defineComponent({
       style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
       // style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
       center: [6.95, 50.9],
-      zoom: 11,
+      zoom: 8,
       bearing: 0,
       pitch: 50,
     })
@@ -136,7 +136,10 @@ export default defineComponent({
       let path = params.get('path') || ''
 
       // test data
-      if (!path) path = 'jakob/2023-11-06/1-bmbf-calibrate-eg-B/summaries/1-infections.csv.gz'
+      if (!path) {
+        this.statusText = 'Need file path in URL'
+        return
+      }
 
       const batteryUrl = `${BATTERY_URL}/${path}`
 
@@ -144,15 +147,30 @@ export default defineComponent({
 
       this.csvStreamer = new CSVStreamer()
 
+      let total_lon = 0
+      let total_lat = 0
+      let numSampledPoints = 0
+
       this.csvStreamer.onmessage = async (buffer: MessageEvent) => {
         if (buffer.data.status) this.statusText = buffer.data.status
         if (buffer.data.error) this.statusText = buffer.data.error
-        if (buffer.data.finished) this.finishedLoadingInfections()
+
+        if (buffer.data.finished) {
+          const lon_center = total_lon / numSampledPoints
+          const lat_center = total_lat / numSampledPoints
+          this.finishedLoadingInfections(lon_center, lat_center)
+        }
 
         if (buffer.data.data) {
           const rows = buffer.data.data as any[]
           this.numInfections += rows.length
           this.statusText = 'Reading infections: ' + this.numInfections
+
+          if (rows.length) {
+            total_lon += rows[0][`"home_lon`]
+            total_lat += rows[0][`"home_lat`]
+            numSampledPoints += 1
+          }
 
           for (const row of rows) {
             if (!this.startDate) this.startDate = row[`"date`]
@@ -176,7 +194,7 @@ export default defineComponent({
       })
     },
 
-    finishedLoadingInfections() {
+    finishedLoadingInfections(lon: number, lat: number) {
       this.csvStreamer.terminate()
 
       if (!this.allInfections.length) {
@@ -185,7 +203,7 @@ export default defineComponent({
       }
       this.setupDailyTotals()
       this.isLoaded = true
-      this.buildDeckLayer()
+      this.buildDeckLayer(lon, lat)
     },
 
     setupDailyTotals() {
@@ -232,13 +250,15 @@ export default defineComponent({
       }
     },
 
-    buildDeckLayer() {
+    buildDeckLayer(lon: number, lat: number) {
       this.statusText = 'Generating map...'
 
       this.deckOverlay = new DeckOverlay({ layers: [] })
 
       this.map.addControl(this.deckOverlay)
       this.map.addControl(new maplibregl.NavigationControl())
+      if (lon && lat) this.map.jumpTo({ center: [lon, lat], zoom: 11 })
+
       this.statusText = 'Home locations of infected people'
 
       this.updateLayers() // setTimeout(this.updateLayers, 1000)
