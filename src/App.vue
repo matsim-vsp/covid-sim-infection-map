@@ -26,6 +26,7 @@ import { ScatterplotLayer } from '@deck.gl/layers'
 // import { HexagonLayer } from '@deck.gl/aggregation-layers'
 import { DataFilterExtension } from '@deck.gl/extensions'
 
+import YAML from 'yaml'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Temporal } from 'temporal-polyfill'
@@ -109,10 +110,10 @@ export default defineComponent({
     this.map = null
     this.map = new maplibregl.Map({
       container: 'mymap',
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', // 'mapbox://styles/mapbox/light-v10', //
       // style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-      center: [6.95, 50.9],
-      zoom: 8,
+      center: [8, 49.9],
+      zoom: 7,
       bearing: 0,
       pitch: 50,
     })
@@ -130,21 +131,29 @@ export default defineComponent({
       this.updateLayers()
     },
 
-    loadInfections() {
+    async loadInfections() {
       // get URL from... URL bar
       let params = new URLSearchParams(document.location.search)
       let path = params.get('path') || ''
 
-      // test data
       if (!path) {
+        // path = 'jakob/2024-08-28/2-updateReporting-noAgg/summaries/calibration21.infections.csv.gz'
         this.statusText = 'Need file path in URL'
         return
       }
 
       const batteryUrl = `${BATTERY_URL}/${path}`
-
       console.log({ batteryUrl })
 
+      // Start Date - grab metadata.yaml from parent path
+      const summaries = batteryUrl.lastIndexOf('summaries/')
+      const metadataUrl = batteryUrl.substring(0, summaries) + 'metadata.yaml'
+      const raw = await (await fetch(metadataUrl)).text()
+      const metadata = YAML.parse(raw)
+      this.startDate = metadata.startDates ? metadata.startDates[0] : '2020-02-25'
+      console.log(this.startDate)
+
+      // Stream CSV data
       this.csvStreamer = new CSVStreamer()
 
       let total_lon = 0
@@ -167,17 +176,16 @@ export default defineComponent({
           this.statusText = 'Reading infections: ' + this.numInfections
 
           if (rows.length) {
-            total_lon += rows[0][`"home_lon`]
-            total_lat += rows[0][`"home_lat`]
+            total_lon += rows[0]['home_lon']
+            total_lat += rows[0]['home_lat']
             numSampledPoints += 1
           }
 
           for (const row of rows) {
-            if (!this.startDate) this.startDate = row[`"date`]
             this.allInfections.push({
-              home_lon: row[`"home_lon`],
-              home_lat: row[`"home_lat`],
-              daysSinceStart: row[`"daysSinceStart`],
+              home_lon: row['home_lon'],
+              home_lat: row['home_lat'],
+              daysSinceStart: row['daysSinceStart'],
             } as any)
           }
         }
@@ -197,6 +205,8 @@ export default defineComponent({
     finishedLoadingInfections(lon: number, lat: number) {
       this.csvStreamer.terminate()
 
+      // console.log('GOT YOU', this.allInfections)
+
       if (!this.allInfections.length) {
         this.statusText = 'ERROR: No infections file found'
         return
@@ -209,6 +219,8 @@ export default defineComponent({
     setupDailyTotals() {
       // this.startDate = this.allInfections[0].date
       this.numDays = this.allInfections[this.allInfections.length - 1].daysSinceStart || 0
+
+      this.filterEndDate = this.numDays
 
       this.dailyTotals = new Float32Array(this.numDays + 1)
 
@@ -257,11 +269,12 @@ export default defineComponent({
 
       this.map.addControl(this.deckOverlay)
       this.map.addControl(new maplibregl.NavigationControl())
-      if (lon && lat) this.map.jumpTo({ center: [lon, lat], zoom: 11 })
+      if (lon && lat) this.map.jumpTo({ center: [lon, lat], zoom: 9 })
 
       this.statusText = 'Home locations of infected people'
 
-      this.updateLayers() // setTimeout(this.updateLayers, 1000)
+      // setTimeout(this.updateLayers, 1000)
+      this.updateLayers() //
     },
 
     updateLayers() {

@@ -16,7 +16,8 @@
     "pako": "^2.1.0",
     "temporal-polyfill": "^0.2.5",
     "the-new-css-reset": "^1.11.2",
-    "vue": "^3.4.35"
+    "vue": "^3.4.35",
+    "yaml": "^2.5.0"
   },
   "devDependencies": {
     "@types/proj4": "^2.5.5",
