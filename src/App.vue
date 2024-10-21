@@ -1,10 +1,12 @@
 <template lang="pug">
 .app
     .button-row
-      p.flex1(style="margin: auto 0"): b {{ statusText }} {{ (filterStartDate+filterEndDate) ? `Day ${filterStartDate} - ${filterEndDate}` : '' }}
-      button(@click="view=0" :class="{isActive: view==0}") Points
-      button(@click="view=1" :class="{isActive: view==1}") Hexagons
-      button(@click="view=2" :class="{isActive: view==2}") Districts
+      p.flex1(style="margin: auto 0; line-height: 1.4rem")
+        b {{ statusText }}{{ (filterStartDate+filterEndDate) ? `: Day ${filterStartDate} - ${filterEndDate}` : '' }}
+        p(style="font-size: 0.85rem") {{ path }}
+      //- button(@click="view=0" :class="{isActive: view==0}") Points
+      //- button(@click="view=1" :class="{isActive: view==1}") Hexagons
+      //- button(@click="view=2" :class="{isActive: view==2}") Districts
 
     .mymap.flex1(id="mymap")
 
@@ -16,6 +18,11 @@
       :labels="labels"
       @range="filterByDate"
     )
+
+    .flex-row(style="font-size: 0.8rem; margin: 0.75rem 0 0 auto; gap: 1rem; color: white;")
+      p: b Radius: {{ radiusSlider}}
+      o-slider(v-if="!updating" v-model="radiusSlider" variant="warning" :tooltip="false" :min="range[0]" :max="range[1]" style="width: 10rem; margin: 0.5rem 0; padding: 0 0.5rem" )
+      o-checkbox.max-content(v-model="useMeters" variant="warning") meters
 
 </template>
 
@@ -89,11 +96,23 @@ export default defineComponent({
       weeks: [] as number[],
       labels: [] as Label[],
       csvStreamer: null as any,
+      useMeters: true,
+      radiusSlider: 250,
+      range: [20, 1000],
+      path: '',
+      updating: true,
     }
   },
   computed: {},
   watch: {
     view() {
+      this.updateLayers()
+    },
+    radiusSlider() {
+      this.updateLayers()
+    },
+    async useMeters() {
+      await this.setupUnits()
       this.updateLayers()
     },
   },
@@ -122,6 +141,15 @@ export default defineComponent({
   },
 
   methods: {
+    async setupUnits() {
+      this.updating = true
+      this.range = this.useMeters ? [10, 1000] : [1, 30]
+      await this.$nextTick()
+      this.updating = false
+      if (!this.useMeters && this.radiusSlider > 30) this.radiusSlider = 30
+      await this.$nextTick()
+    },
+
     filterByDate(pct: { start: number; end: number }) {
       const start = Math.floor(this.numDays * pct.start)
       const end = Math.ceil(this.numDays * pct.end)
@@ -134,15 +162,25 @@ export default defineComponent({
     async loadInfections() {
       // get URL from... URL bar
       let params = new URLSearchParams(document.location.search)
-      let path = params.get('path') || ''
+      this.path = params.get('path') || ''
 
-      if (!path) {
+      if (!this.path) {
         // path = 'jakob/2024-08-28/2-updateReporting-noAgg/summaries/calibration21.infections.csv.gz'
         this.statusText = 'Need file path in URL'
         return
       }
 
-      const batteryUrl = `${BATTERY_URL}/${path}`
+      // radius settings
+      const units = params.get('units')
+      if ('pixels' == units) this.useMeters = false
+
+      this.range = this.useMeters ? [20, 1000] : [1, 30]
+      const initialRadius = parseInt(params.get('radius') || '250')
+      this.radiusSlider = initialRadius
+      this.updating = false
+      await this.$nextTick()
+
+      const batteryUrl = `${BATTERY_URL}/${this.path}`
       console.log({ batteryUrl })
 
       // Start Date - grab metadata.yaml from parent path
@@ -274,10 +312,18 @@ export default defineComponent({
       this.statusText = 'Home locations of infected people'
 
       // setTimeout(this.updateLayers, 1000)
-      this.updateLayers() //
+      this.updateLayers()
     },
 
     updateLayers() {
+      if (!this.deckOverlay?._deck) return
+
+      // save settings in url bar
+      const urlParams = new URLSearchParams(window.location.search)
+      urlParams.set('radius', '' + this.radiusSlider)
+      urlParams.set('units', this.useMeters ? 'meters' : 'pixels')
+      history.replaceState({}, '', '?' + urlParams.toString())
+
       const layers = []
 
       layers.push(
@@ -286,9 +332,10 @@ export default defineComponent({
           id: 'pointlayer-1',
           data: this.allInfections,
           getFillColor: [50, 0, 180],
-          getRadius: 20,
+          getRadius: 1,
           getPosition: (d: InfectionRecord) => [d.home_lon, d.home_lat],
-          radiusScale: 1,
+          radiusScale: this.radiusSlider,
+          radiusUnits: this.useMeters ? 'meters' : 'pixels',
           stroked: false,
           filled: true,
           autoHighlight: true,
@@ -388,9 +435,9 @@ b {
   right: 0;
   margin: 0.5rem 0.5rem;
   padding: 0.5rem 0.5rem;
-  background-color: rgb(228, 228, 182);
+  background-color: rgb(49, 99, 134);
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr auto auto;
   grid-template-columns: 1fr;
 }
 
@@ -400,14 +447,29 @@ b {
   display: flex;
   flex-direction: row;
   margin-bottom: 0.5rem;
+  color: white;
 
   p {
     font-size: 1.1rem;
   }
 }
 
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
 .flex1 {
   flex: 1;
+}
+
+.max-content {
+  width: max-content;
 }
 
 #mymap {
