@@ -303,7 +303,7 @@ export default defineComponent({
     buildDeckLayer(lon: number, lat: number) {
       this.statusText = 'Generating map...'
 
-      this.deckOverlay = new DeckOverlay({ layers: [] })
+      this.deckOverlay = new DeckOverlay({ interleaved: true, layers: [] })
 
       this.map.addControl(this.deckOverlay)
       this.map.addControl(new maplibregl.NavigationControl())
