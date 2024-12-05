@@ -65,6 +65,7 @@ interface InfectionRecord {
   home_lon: number
   home_lat: number
   daysSinceStart: number
+  infection_type: string
 }
 
 enum MapView {
@@ -219,11 +220,12 @@ export default defineComponent({
             numSampledPoints += 1
           }
 
-          for (const row of rows) {
+          for (const row of rows) {            
             this.allInfections.push({
               home_lon: row['home_lon'],
               home_lat: row['home_lat'],
               daysSinceStart: row['daysSinceStart'],
+              infection_type: row['infection_type']
             } as any)
           }
         }
@@ -315,6 +317,16 @@ export default defineComponent({
       this.updateLayers()
     },
 
+    getColor(value: String) {
+      if (value === "import") {
+        return [50, 0, 180]
+      } else if (value === "normal") {
+        return [0, 204, 0]
+      } else {
+        return [255, 0, 0]
+      }
+    },
+
     updateLayers() {
       if (!this.deckOverlay?._deck) return
 
@@ -331,7 +343,7 @@ export default defineComponent({
           visible: this.view == MapView.points,
           id: 'pointlayer-1',
           data: this.allInfections,
-          getFillColor: [50, 0, 180],
+          getFillColor: (d: InfectionRecord) => this.getColor(d.infection_type),
           getRadius: 1,
           getPosition: (d: InfectionRecord) => [d.home_lon, d.home_lat],
           radiusScale: this.radiusSlider,
