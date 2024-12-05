@@ -220,7 +220,7 @@ export default defineComponent({
             numSampledPoints += 1
           }
 
-          for (const row of rows) {            
+          for (const row of rows) {
             this.allInfections.push({
               home_lon: row['home_lon'],
               home_lat: row['home_lat'],
@@ -343,7 +343,7 @@ export default defineComponent({
           visible: this.view == MapView.points,
           id: 'pointlayer-1',
           data: this.allInfections,
-          getFillColor: (d: InfectionRecord) => this.getColor(d.infection_type),
+          getFillColor: (d: InfectionRecord) =>  this.getColor(d.infection_type) as any,
           getRadius: 1,
           getPosition: (d: InfectionRecord) => [d.home_lon, d.home_lat],
           radiusScale: this.radiusSlider,
